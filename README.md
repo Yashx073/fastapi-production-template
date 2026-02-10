@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # FastAPI Production Template
 
 A production-ready FastAPI backend template with:
@@ -15,6 +16,8 @@ A production-ready FastAPI backend template with:
 ```bash
 make run
 =======
+=======
+>>>>>>> c4c05dd (Fix README formatting and structure)
 # FastAPI Production Template
 
 A production-ready FastAPI backend template built for scalable API development and containerized deployment.
@@ -149,4 +152,3 @@ This template serves as a foundation for:
 
 Yash Mohadikar  
 GitHub: https://github.com/Yashx073
->>>>>>> c4c05dd (Fix README formatting and structure)
