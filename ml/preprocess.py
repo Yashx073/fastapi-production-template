@@ -3,8 +3,10 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
+path ="data/credit_card_fraud_10k.csv"
+
 def load_data(path):
-    df = pd.read_csv("data/credit_card_fraud_10k.csv")
+    df = pd.read_csv(path)
 
     df = df.drop("transaction_id", axis=1)
 

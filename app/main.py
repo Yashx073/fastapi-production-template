@@ -1,13 +1,16 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import joblib
 import pandas as pd
-import os
+import mlflow.sklearn
 
-app = FastAPI()
- 
-MODEL_PATH = "ml/model.pkl"
-model = joblib.load(MODEL_PATH)
+
+app = FastAPI(title="Fraud Detection API")
+
+MODEL_NAME = "fraud-detection-model"
+
+model = mlflow.sklearn.load_model(
+    model_uri=f"models:/{MODEL_NAME}@production"
+)
 
 class Transaction(BaseModel):
     amount: float
@@ -21,16 +24,17 @@ class Transaction(BaseModel):
 
 @app.get("/")
 def root():
-    return {"status" : "running"}
+    return {"status": "running"}
+
 
 @app.get("/health")
 def health():
-    return {"status" : "healthy"}
+    return {"status": "healthy"}
 
 @app.post("/predict")
 def predict(transaction: Transaction, threshold: float = 0.8):
 
-    data = pd.DataFrame([{
+    df = pd.DataFrame([{
         "amount": transaction.amount,
         "transaction_hour": transaction.transaction_hour,
         "merchant_category": transaction.merchant_category,
@@ -39,14 +43,14 @@ def predict(transaction: Transaction, threshold: float = 0.8):
         "device_trust_score": transaction.device_trust_score,
         "velocity_last_24h": transaction.velocity_last_24h,
         "cardholder_age": transaction.cardholder_age,
-    }], dtype = object)
+    }])
 
-    probability = model.predict_proba(data)[0][1]
+    probability = float(model.predict(df)[0])
+
     prediction = int(probability >= threshold)
 
     return {
-        "fraud_probability" : round(float(probability), 4),
-        "is_fraud" : prediction,
-        "threshold_used" : threshold
-    } 
-    
+        "fraud_probability": round(probability, 4),
+        "is_fraud": prediction,
+        "threshold_used": threshold
+    }
