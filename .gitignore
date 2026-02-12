@@ -22,3 +22,18 @@ Thumbs.db
 
 # Environment files
 .env
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Virtual env
+venv/
+
+# Python
+__pycache__/
+*.pyc
+
+*.pkl
+mlruns/
+mlflow.db
