@@ -1,10 +1,16 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import pandas as pd
+import mlflow
 import mlflow.sklearn
+from app.db.models import Base
+from app.db.session import engine
+from app.services.prediction_logger import log_prediction
 
 
 app = FastAPI(title="Fraud Detection API")
+
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
 
 MODEL_NAME = "fraud-detection-model"
 
@@ -26,6 +32,9 @@ class Transaction(BaseModel):
 def root():
     return {"status": "running"}
 
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind = engine)
 
 @app.get("/health")
 def health():
@@ -33,6 +42,8 @@ def health():
 
 @app.post("/predict")
 def predict(transaction: Transaction, threshold: float = 0.8):
+
+    start_time = time.time()
 
     df = pd.DataFrame([{
         "amount": transaction.amount,
@@ -45,9 +56,18 @@ def predict(transaction: Transaction, threshold: float = 0.8):
         "cardholder_age": transaction.cardholder_age,
     }])
 
-    probability = float(model.predict(df)[0])
-
+    probability = float(model.predict_proba(df)[0][1])
     prediction = int(probability >= threshold)
+
+    latency_ms = (time.time() - start_time) * 1000
+
+    log_prediction(
+        model_version = "production",
+        features = df.to_dict(orient = "records")[0],
+        prediction = prediction,
+        probability = probability,
+        latency = latency_ms
+    )
 
     return {
         "fraud_probability": round(probability, 4),

@@ -11,7 +11,7 @@ from sklearn.metrics import (
     f1_score,
 )
 from sklearn.model_selection import train_test_split
-from preprocess import load_data, build_preprocessor
+from features.preprocess import load_data, build_preprocessor
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np

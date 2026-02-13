@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: fraud
+      POSTGRES_PASSWORD: fraud
+      POSTGRES_DB: frauddb
+    ports:
+      - "5432:5432"
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root /mlruns
+      --host 0.0.0.0
+    ports:
+      - "5000:5000"
+
+  api:
+    build: .
+    depends_on:
+      - db
+      - mlflow
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
