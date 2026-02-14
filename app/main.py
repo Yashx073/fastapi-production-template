@@ -6,6 +6,8 @@ import mlflow.sklearn
 from app.db.models import Base
 from app.db.session import engine
 from app.services.prediction_logger import log_prediction
+import os
+import time 
 
 
 app = FastAPI(title="Fraud Detection API")

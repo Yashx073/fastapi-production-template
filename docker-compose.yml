@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: frauddb
     ports:
       - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
 
   mlflow:
     image: ghcr.io/mlflow/mlflow
@@ -15,13 +17,23 @@ services:
       --backend-store-uri sqlite:///mlflow.db
       --default-artifact-root /mlruns
       --host 0.0.0.0
+      --allowed-hosts "*"
     ports:
       - "5000:5000"
+    volumes:
+      - ./mlruns:/mlruns
+      - ./mlflow.db:/mlflow.db
 
   api:
     build: .
     depends_on:
       - db
       - mlflow
+    ports:
+      - "8000:8000"
     environment:
-      MLFLOW_TRACKING_URI: http://mlflow:5000
+      - DATABASE_URL=postgresql://fraud:fraud@db:5432/frauddb
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+
+volumes:
+  db_data:
