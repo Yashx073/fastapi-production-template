@@ -1,24 +1,29 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 import pandas as pd
 import mlflow
 import mlflow.sklearn
+import os
+
 from app.db.models import Base
 from app.db.session import engine
 from app.services.prediction_logger import log_prediction
-import os
-import time 
+
+mlflow.set_tracking_uri("http://mlflow:5000")
+MODEL_URI = "models:/fraud-detection-model/Production"
 
 
-app = FastAPI(title="Fraud Detection API")
+model = None
 
-mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global model
+    model = mlflow.sklearn.load_model(MODEL_URI)
+    Base.metadata.create_all(bind=engine)
+    yield
 
-MODEL_NAME = "fraud-detection-model"
-
-model = mlflow.sklearn.load_model(
-    model_uri=f"models:/{MODEL_NAME}@production"
-)
+app = FastAPI(lifespan=lifespan)
 
 class Transaction(BaseModel):
     amount: float
@@ -34,45 +39,24 @@ class Transaction(BaseModel):
 def root():
     return {"status": "running"}
 
-@app.on_event("startup")
-def startup():
-    Base.metadata.create_all(bind = engine)
-
 @app.get("/health")
 def health():
     return {"status": "healthy"}
 
 @app.post("/predict")
 def predict(transaction: Transaction, threshold: float = 0.8):
-
-    start_time = time.time()
-
-    df = pd.DataFrame([{
-        "amount": transaction.amount,
-        "transaction_hour": transaction.transaction_hour,
-        "merchant_category": transaction.merchant_category,
-        "foreign_transaction": transaction.foreign_transaction,
-        "location_mismatch": transaction.location_mismatch,
-        "device_trust_score": transaction.device_trust_score,
-        "velocity_last_24h": transaction.velocity_last_24h,
-        "cardholder_age": transaction.cardholder_age,
-    }])
-
-    probability = float(model.predict_proba(df)[0][1])
-    prediction = int(probability >= threshold)
-
-    latency_ms = (time.time() - start_time) * 1000
+    df = pd.DataFrame([transaction.dict()])
+    prob = model.predict_proba(df)[0][1]
+    fraud = prob >= threshold
 
     log_prediction(
-        model_version = "production",
-        features = df.to_dict(orient = "records")[0],
-        prediction = prediction,
-        probability = probability,
-        latency = latency_ms
+        features=df.to_dict(orient="records")[0],
+        probability=float(prob),
+        prediction=fraud
     )
 
     return {
-        "fraud_probability": round(probability, 4),
-        "is_fraud": prediction,
-        "threshold_used": threshold
+        "fraud_probability": round(float(prob), 4),
+        "fraud": fraud,
+        "threshold": threshold
     }

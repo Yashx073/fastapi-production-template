@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application and ML model
 COPY app ./app
 COPY ml ./ml
+COPY features ./features
 
 EXPOSE 8000
 
