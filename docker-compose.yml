@@ -1,8 +1,7 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:15
+    restart: unless-stopped
     environment:
       POSTGRES_USER: fraud
       POSTGRES_PASSWORD: fraud
@@ -11,32 +10,57 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fraud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mlflow:
     image: ghcr.io/mlflow/mlflow
+    restart: unless-stopped
     command: >
       mlflow server
       --backend-store-uri sqlite:///mlflow/mlflow.db
       --default-artifact-root /mlflow/artifacts
       --host 0.0.0.0
-      --allowed-hosts "*"
+    environment:
+      - MLFLOW_ALLOWED_ORIGINS=["http://localhost:5000", "http://127.0.0.1:5000", "http://mlflow:5000", "http://localhost", "http://127.0.0.1", "*"]
+      - MLFLOW_CORS_ALLOW_ORIGIN_HEADER_VALUE=1
     ports:
       - "5000:5000"
     volumes:
-      - mlflow_db:/mlflow.db
+      - mlflow_db:/mlflow
       - mlflow_artifacts:/mlflow/artifacts
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:5000')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   api:
     build: .
+    restart: unless-stopped
     depends_on:
-      - db
-      - mlflow
+      db:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://fraud:fraud@db:5432/frauddb
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - PYTHONPATH=/app
+    volumes:
+      - ./mlruns:/mlruns
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   db_data:

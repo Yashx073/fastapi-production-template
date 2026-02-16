@@ -41,7 +41,7 @@ client = MlflowClient()
 
 from features.preprocess import load_data, build_preprocessor
 
-DATA_PATH = "ml/data/credit_card_fraud_10k.csv"
+DATA_PATH = PROJECT_ROOT / "ml" / "data" / "credit_card_fraud_10k.csv"
 
 
 def train_and_log(model, model_name, X_train, X_test, y_train, y_test):
