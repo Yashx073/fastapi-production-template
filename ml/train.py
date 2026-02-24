@@ -1,11 +1,15 @@
 import os
 import sys
 import tempfile
+import hashlib
 from pathlib import Path
+import joblib
+
+# Set environment variables BEFORE importing mlflow
+os.environ["MLFLOW_TRACKING_URI"] = "http://mlflow:5000"
 
 import mlflow
 import mlflow.sklearn
-from mlflow.tracking import MlflowClient
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -26,33 +30,37 @@ from sklearn.model_selection import train_test_split
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-MLFLOW_ARTIFACT_ROOT = PROJECT_ROOT / "mlruns"
-MLFLOW_TRACKING_URI = f"file://{MLFLOW_ARTIFACT_ROOT}"
+# Configure MLflow to use remote server for tracking only (not registry)
+mlflow.set_tracking_uri("http://mlflow:5000")
 
 EXPERIMENT_NAME = "fraud_detection"
-REGISTERED_MODEL_NAME = "fraud-detection-model"
-
-os.makedirs(MLFLOW_ARTIFACT_ROOT, exist_ok=True)
-
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+RANDOM_SEED = 42
 mlflow.set_experiment(EXPERIMENT_NAME)
-
-client = MlflowClient()
 
 from features.preprocess import load_data, build_preprocessor
 
-DATA_PATH = PROJECT_ROOT / "ml" / "data" / "credit_card_fraud_10k.csv"
+DATA_PATH = PROJECT_ROOT / "data" / "processed" / "credit_card_fraud_v1.parquet"
 
 
-def train_and_log(model, model_name, X_train, X_test, y_train, y_test):
+def _file_sha256(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
+
+def train_and_log(model, model_name, X_train, X_test, y_train, y_test, data_sha256):
     with mlflow.start_run(run_name=model_name):
-
         mlflow.set_tag("stage", "training")
         mlflow.set_tag("problem_type", "binary_classification")
         mlflow.set_tag("dataset", "credit_card_fraud_10k")
         mlflow.set_tag("model_type", model_name)
         mlflow.set_tag("imbalance", "severe")
+
+        mlflow.log_param("data_path", str(DATA_PATH))
+        mlflow.log_param("data_sha256", data_sha256)
+        mlflow.log_param("random_seed", RANDOM_SEED)
 
         model_step = model.named_steps["model"]
         mlflow.log_params(model_step.get_params())
@@ -77,7 +85,6 @@ def train_and_log(model, model_name, X_train, X_test, y_train, y_test):
         mlflow.log_metric("false_negatives", false_negatives)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-
             cm_path = os.path.join(tmpdir, "confusion_matrix.png")
             plt.figure(figsize=(4, 4))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
@@ -93,24 +100,26 @@ def train_and_log(model, model_name, X_train, X_test, y_train, y_test):
             plt.close()
             mlflow.log_artifact(pr_path, artifact_path="plots")
 
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path="model",
-            registered_model_name=REGISTERED_MODEL_NAME,
-        )
-
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                model_path = os.path.join(tmpdir, "model.pkl")
+                joblib.dump(model, model_path)
+                mlflow.log_artifact(model_path, artifact_path="model")
+                print(f"✓ Model artifact logged for {model_name}")
+        except Exception as e:
+            print(f"⚠ Could not log model artifact: {e}")
 
 
 def main():
-
     X, y = load_data(DATA_PATH)
+    data_sha256 = _file_sha256(DATA_PATH)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
         test_size=0.2,
         stratify=y,
-        random_state=42,
+        random_state=RANDOM_SEED,
     )
 
     preprocessor = build_preprocessor(X_train)
@@ -130,6 +139,7 @@ def main():
         X_test,
         y_train,
         y_test,
+        data_sha256,
     )
 
     rf_model = Pipeline([
@@ -137,7 +147,7 @@ def main():
         ("model", RandomForestClassifier(
             n_estimators=100,
             class_weight="balanced",
-            random_state=42,
+            random_state=RANDOM_SEED,
         )),
     ])
 
@@ -148,6 +158,7 @@ def main():
         X_test,
         y_train,
         y_test,
+        data_sha256,
     )
 
 

@@ -1,12 +1,15 @@
 import pandas as pd
-import numpy as np
+from pathlib import Path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
-path ="data/credit_card_fraud_10k.csv"
 
-def load_data(path):
-    df = pd.read_csv(path)
+def load_data(parquet_path: str | Path):
+    parquet_path = Path(parquet_path)
+    if parquet_path.suffix != ".parquet":
+        raise ValueError("Training data must be a .parquet file")
+
+    df = pd.read_parquet(parquet_path)
 
     df = df.drop("transaction_id", axis=1)
 

@@ -1,0 +1,7 @@
+{
+  "dataset": "credit_card_fraud",
+  "version": "v1",
+  "rows": 10000,
+  "columns": ['transaction_id', 'amount', 'transaction_hour', 'merchant_category', 'foreign_transaction', 'location_mismatch', 'device_trust_score', 'velocity_last_24h', 'cardholder_age', 'is_fraud'],
+  "hash": "38f465892178b2cb0b75539dbe8ef2bc4f4ed5169def308808d9cfa3378cbe48"
+}

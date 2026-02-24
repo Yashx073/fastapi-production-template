@@ -11,7 +11,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fraud"]
+      test: ["CMD-SHELL", "pg_isready -U fraud -d frauddb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,8 +25,9 @@ services:
       --default-artifact-root /mlflow/artifacts
       --host 0.0.0.0
     environment:
-      - MLFLOW_ALLOWED_ORIGINS=["http://localhost:5000", "http://127.0.0.1:5000", "http://mlflow:5000", "http://localhost", "http://127.0.0.1", "*"]
+      - MLFLOW_ALLOWED_ORIGINS=["http://localhost:5000", "http://127.0.0.1:5000", "http://mlflow:5000", "http://localhost", "http://127.0.0.1", "http://api:8000", "*"]
       - MLFLOW_CORS_ALLOW_ORIGIN_HEADER_VALUE=1
+      - MLFLOW_SERVER_ALLOWED_HOSTS=*
     ports:
       - "5000:5000"
     volumes:
@@ -51,10 +52,8 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://fraud:fraud@db:5432/frauddb
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
       - PYTHONPATH=/app
-    volumes:
-      - ./mlruns:/mlruns
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health')\" || exit 1"]
       interval: 10s

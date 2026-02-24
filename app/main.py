@@ -1,20 +1,17 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import pandas as pd
 import mlflow
 import mlflow.sklearn
-import os
 import time
-from pathlib import Path
 
 from app.db.models import Base
 from app.db.session import engine
 from app.services.prediction_logger import log_prediction
+from app.schemas import FraudRequest
 
 mlflow.set_tracking_uri("http://mlflow:5000")
 MODEL_URI = "models:/fraud-detection-model/8"
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 model = None
@@ -89,16 +86,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-class Transaction(BaseModel):
-    amount: float
-    transaction_hour: int
-    merchant_category: str
-    foreign_transaction: int
-    location_mismatch: int
-    device_trust_score: int
-    velocity_last_24h: int
-    cardholder_age: int
-
 @app.get("/")
 def root():
     return {"status": "running"}
@@ -108,7 +95,7 @@ def health():
     return {"status": "healthy"}
 
 @app.post("/predict")
-def predict(transaction: Transaction, threshold: float = 0.8):
+def predict(transaction: FraudRequest, threshold: float = 0.8):
     import time
     start_time = time.time()
     
@@ -131,11 +118,5 @@ def predict(transaction: Transaction, threshold: float = 0.8):
     return {
         "fraud_probability": float(prob),
         "is_fraud": bool(fraud),
-        "threshold": threshold
-    }
-
-    return {
-        "fraud_probability": round(float(prob), 4),
-        "fraud": fraud,
-        "threshold": threshold
+        "threshold": threshold,
     }
