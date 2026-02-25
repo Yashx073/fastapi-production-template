@@ -15,11 +15,8 @@ EXPECTED_COLUMNS = [
 ]
 
 
-def validate_schema(df: pd.DataFrame) -> None:
-    """Validate dataframe schema and constraints using pure pandas.
-    
-    Raises RuntimeError if validation fails.
-    """
+def validate_schema(df: pd.DataFrame, raise_on_error: bool = True) -> dict:
+    """Validate dataframe schema and constraints using pure pandas."""
     failures = []
     
     # Column structure
@@ -33,33 +30,33 @@ def validate_schema(df: pd.DataFrame) -> None:
     
     # Uniqueness
     if "transaction_id" in df.columns and df["transaction_id"].duplicated().any():
-        failures.append("transaction_id has duplicates")
+        failures.append(f"transaction_id has {df['transaction_id'].duplicated().sum()} duplicates")
     
     # Numeric ranges
     if "amount" in df.columns:
         invalid = (df["amount"] < 0) | (df["amount"] > 100000)
         if invalid.any():
-            failures.append(f"amount out of range: {invalid.sum()} rows")
+            failures.append(f"amount out of range [0, 100000]: {invalid.sum()} rows")
     
     if "transaction_hour" in df.columns:
         invalid = (df["transaction_hour"] < 0) | (df["transaction_hour"] > 23)
         if invalid.any():
-            failures.append(f"transaction_hour out of range: {invalid.sum()} rows")
+            failures.append(f"transaction_hour out of range [0, 23]: {invalid.sum()} rows")
     
     if "device_trust_score" in df.columns:
         invalid = (df["device_trust_score"] < 0) | (df["device_trust_score"] > 100)
         if invalid.any():
-            failures.append(f"device_trust_score out of range: {invalid.sum()} rows")
+            failures.append(f"device_trust_score out of range [0, 100]: {invalid.sum()} rows")
     
     if "velocity_last_24h" in df.columns:
         invalid = (df["velocity_last_24h"] < 0) | (df["velocity_last_24h"] > 500)
         if invalid.any():
-            failures.append(f"velocity_last_24h out of range: {invalid.sum()} rows")
+            failures.append(f"velocity_last_24h out of range [0, 500]: {invalid.sum()} rows")
     
     if "cardholder_age" in df.columns:
         invalid = (df["cardholder_age"] < 18) | (df["cardholder_age"] > 100)
         if invalid.any():
-            failures.append(f"cardholder_age out of range: {invalid.sum()} rows")
+            failures.append(f"cardholder_age out of range [18, 100]: {invalid.sum()} rows")
     
     # Binary flags
     for col in ["foreign_transaction", "location_mismatch", "is_fraud"]:
@@ -73,8 +70,19 @@ def validate_schema(df: pd.DataFrame) -> None:
         if col in df.columns and df[col].isna().any():
             failures.append(f"{col} has NULL values: {df[col].isna().sum()} rows")
     
-    if failures:
+    results = {
+        "success": len(failures) == 0,
+        "failures": failures,
+        "num_rows": len(df),
+    }
+    
+    if not results["success"] and raise_on_error:
         error_msg = "❌ Schema validation failed:\n  " + "\n  ".join(failures)
         raise RuntimeError(error_msg)
     
-    print(f"✅ Schema validation passed ({len(df)} rows, {len(df.columns)} columns)")
+    if results["success"]:
+        print(f"✅ Schema validation passed ({len(df)} rows, {len(df.columns)} columns)")
+    else:
+        print(f"⚠️  Schema validation warnings: {len(failures)} issues found")
+    
+    return results

@@ -21,6 +21,8 @@ COPY ml ./ml
 COPY features ./features
 COPY configs ./configs
 COPY data ./data
+COPY orchestration ./orchestration
+COPY validation ./validation
 
 EXPOSE 8000
 
