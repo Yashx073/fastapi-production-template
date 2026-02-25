@@ -7,6 +7,8 @@ mlflow
 sqlalchemy
 psycopg2-binary
 matplotlib
-seaborn 
+seaborn
 torch
 pyarrow
+great-expectations
+pyyaml
