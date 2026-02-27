@@ -1,5 +1,5 @@
 experiment:
-  name: fraud-detection
+  name: fraud-detection-v2
 
 data:
   target_column: class

@@ -1,88 +1,47 @@
 import pandas as pd
 
 
-EXPECTED_COLUMNS = [
-    "transaction_id",
-    "amount",
-    "transaction_hour",
-    "merchant_category",
-    "foreign_transaction",
-    "location_mismatch",
-    "device_trust_score",
-    "velocity_last_24h",
-    "cardholder_age",
-    "is_fraud",
-]
+def validate_schema(df: pd.DataFrame) -> None:
+    expected_columns = [
+        "transaction_id",
+        "amount",
+        "transaction_hour",
+        "merchant_category",
+        "foreign_transaction",
+        "location_mismatch",
+        "device_trust_score",
+        "velocity_last_24h",
+        "cardholder_age",
+        "is_fraud",
+    ]
 
+    # ---------- Column existence ----------
+    if list(df.columns) != expected_columns:
+        raise RuntimeError("❌ Schema validation failed: column order mismatch")
 
-def validate_schema(df: pd.DataFrame, raise_on_error: bool = True) -> dict:
-    """Validate dataframe schema and constraints using pure pandas."""
-    failures = []
-    
-    # Column structure
-    missing = set(EXPECTED_COLUMNS) - set(df.columns)
-    if missing:
-        failures.append(f"Missing columns: {missing}")
-    
-    extra = set(df.columns) - set(EXPECTED_COLUMNS)
-    if extra:
-        failures.append(f"Extra columns: {extra}")
-    
-    # Uniqueness
-    if "transaction_id" in df.columns and df["transaction_id"].duplicated().any():
-        failures.append(f"transaction_id has {df['transaction_id'].duplicated().sum()} duplicates")
-    
-    # Numeric ranges
-    if "amount" in df.columns:
-        invalid = (df["amount"] < 0) | (df["amount"] > 100000)
-        if invalid.any():
-            failures.append(f"amount out of range [0, 100000]: {invalid.sum()} rows")
-    
-    if "transaction_hour" in df.columns:
-        invalid = (df["transaction_hour"] < 0) | (df["transaction_hour"] > 23)
-        if invalid.any():
-            failures.append(f"transaction_hour out of range [0, 23]: {invalid.sum()} rows")
-    
-    if "device_trust_score" in df.columns:
-        invalid = (df["device_trust_score"] < 0) | (df["device_trust_score"] > 100)
-        if invalid.any():
-            failures.append(f"device_trust_score out of range [0, 100]: {invalid.sum()} rows")
-    
-    if "velocity_last_24h" in df.columns:
-        invalid = (df["velocity_last_24h"] < 0) | (df["velocity_last_24h"] > 500)
-        if invalid.any():
-            failures.append(f"velocity_last_24h out of range [0, 500]: {invalid.sum()} rows")
-    
-    if "cardholder_age" in df.columns:
-        invalid = (df["cardholder_age"] < 18) | (df["cardholder_age"] > 100)
-        if invalid.any():
-            failures.append(f"cardholder_age out of range [18, 100]: {invalid.sum()} rows")
-    
-    # Binary flags
-    for col in ["foreign_transaction", "location_mismatch", "is_fraud"]:
-        if col in df.columns:
-            invalid = ~df[col].isin([0, 1])
-            if invalid.any():
-                failures.append(f"{col} has non-binary values: {invalid.sum()} rows")
-    
-    # NULL checks
-    for col in EXPECTED_COLUMNS:
-        if col in df.columns and df[col].isna().any():
-            failures.append(f"{col} has NULL values: {df[col].isna().sum()} rows")
-    
-    results = {
-        "success": len(failures) == 0,
-        "failures": failures,
-        "num_rows": len(df),
+    # ---------- Uniqueness ----------
+    if df["transaction_id"].duplicated().any():
+        raise RuntimeError("❌ Schema validation failed: duplicate transaction_id")
+
+    # ---------- Numeric ranges ----------
+    range_checks = {
+        "amount": (0.0, 100000.0),
+        "transaction_hour": (0, 23),
+        "device_trust_score": (0, 100),
+        "velocity_last_24h": (0, 500),
+        "cardholder_age": (18, 100),
     }
-    
-    if not results["success"] and raise_on_error:
-        error_msg = "❌ Schema validation failed:\n  " + "\n  ".join(failures)
-        raise RuntimeError(error_msg)
-    
-    if results["success"]:
-        print(f"✅ Schema validation passed ({len(df)} rows, {len(df.columns)} columns)")
-    else:
-        print(f"⚠️  Schema validation warnings: {len(failures)} issues found")
-    
-    return results
+    for col, (min_val, max_val) in range_checks.items():
+        if not df[col].between(min_val, max_val).all():
+            raise RuntimeError(f"❌ Schema validation failed: {col} out of range")
+
+    # ---------- Binary flags ----------
+    for col in ["foreign_transaction", "location_mismatch", "is_fraud"]:
+        if not df[col].isin([0, 1]).all():
+            raise RuntimeError(f"❌ Schema validation failed: {col} not binary")
+
+    # ---------- Null checks ----------
+    if df[expected_columns].isnull().any().any():
+        raise RuntimeError("❌ Schema validation failed: null values present")
+
+    print("✅ Schema validation passed")

@@ -12,4 +12,5 @@ pyarrow
 pyyaml
 joblib
 prefect
+great_expectations
 #kal

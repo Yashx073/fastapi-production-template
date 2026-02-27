@@ -19,10 +19,13 @@ services:
   mlflow:
     image: ghcr.io/mlflow/mlflow
     restart: unless-stopped
+    user: "0:0"
     command: >
       mlflow server
       --backend-store-uri sqlite:///mlflow/mlflow.db
-      --default-artifact-root /mlflow/artifacts
+      --default-artifact-root mlflow-artifacts:/
+      --artifacts-destination /mlflow/artifacts
+      --serve-artifacts
       --host 0.0.0.0
     environment:
       - MLFLOW_ALLOWED_ORIGINS=["http://localhost:5000", "http://127.0.0.1:5000", "http://mlflow:5000", "http://localhost", "http://127.0.0.1", "http://api:8000", "*"]

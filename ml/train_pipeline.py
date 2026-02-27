@@ -148,7 +148,7 @@ def main(args):
     set_seeds(config["split"]["random_state"])
 
     df = pd.read_parquet(data_path)
-    validate_schema(df, raise_on_error=True)
+    validate_schema(df)
 
     data_sha256 = file_sha256(data_path)
 
