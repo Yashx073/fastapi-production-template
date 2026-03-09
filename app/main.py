@@ -31,7 +31,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"❌ FATAL: Failed to load model from Production stage: {e}")
         print("   Ensure a model version is promoted to Production in MLflow Model Registry")
-        raise RuntimeError(f"Production model not available: {e}")
+        model = None
+        print("⚠️  Starting API in degraded mode (no model loaded)")
     
     # Initialize database
     db_max_retries = 5
@@ -59,7 +60,10 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy" if model is not None else "degraded",
+        "model_loaded": model is not None,
+    }
 
 @app.post("/predict")
 def predict(transaction: FraudRequest, threshold: float = 0.8):

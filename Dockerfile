@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY ml ./ml
 COPY features ./features
+COPY monitoring ./monitoring
 COPY configs ./configs
 COPY data ./data
 COPY orchestration ./orchestration
