@@ -13,7 +13,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-os.environ.setdefault("MLFLOW_TRACKING_URI", "http://localhost:5000")
+os.environ.setdefault("MLFLOW_TRACKING_URI", f"sqlite:///{PROJECT_ROOT}/mlflow.db")
 
 import mlflow
 import mlflow.sklearn
@@ -147,7 +147,14 @@ def main(args):
 
     set_seeds(config["split"]["random_state"])
 
-    df = pd.read_parquet(data_path)
+    # Read data (support both CSV and Parquet)
+    if data_path.suffix.lower() == '.csv':
+        df = pd.read_csv(data_path)
+    elif data_path.suffix.lower() == '.parquet':
+        df = pd.read_parquet(data_path)
+    else:
+        raise ValueError(f"Unsupported file format: {data_path.suffix}. Use .csv or .parquet")
+    
     validate_schema(df)
 
     data_sha256 = file_sha256(data_path)

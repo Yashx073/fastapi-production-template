@@ -13,7 +13,7 @@ def _to_native(obj):
         return obj
 
 
-def _async_log(model_version, features, prediction, probability, latency_ms):
+def _async_log(model_version, features, prediction, probability, latency_ms, status="success"):
     """
     Background logging thread - never blocks inference.
     Logs to both SQLite (monitoring) and Postgres (audit trail).
@@ -22,7 +22,7 @@ def _async_log(model_version, features, prediction, probability, latency_ms):
     try:
         store = get_store()
         native_features = _to_native(features)
-        native_prediction = int(bool(prediction))
+        native_prediction = int(bool(prediction)) if prediction is not None else None
         native_probability = float(probability) if probability is not None else None
         
         store.log_prediction(
@@ -31,6 +31,7 @@ def _async_log(model_version, features, prediction, probability, latency_ms):
             prediction=native_prediction,
             probability=native_probability,
             latency_ms=float(latency_ms),
+            status=str(status),
         )
     except Exception as e:
         print(f"⚠️  SQLite logging failed (non-fatal): {e}")
@@ -39,7 +40,7 @@ def _async_log(model_version, features, prediction, probability, latency_ms):
     try:
         db = SessionLocal()
         native_features = _to_native(features)
-        native_prediction = int(bool(prediction))
+        native_prediction = int(bool(prediction)) if prediction is not None else None
         native_probability = float(probability) if probability is not None else None
         native_latency = float(latency_ms) if latency_ms is not None else None
 
@@ -49,6 +50,7 @@ def _async_log(model_version, features, prediction, probability, latency_ms):
             prediction=native_prediction,
             probability=native_probability,
             latency_ms=native_latency,
+            status=str(status),
         )
         db.add(record)
         db.commit()
@@ -61,7 +63,7 @@ def _async_log(model_version, features, prediction, probability, latency_ms):
             pass
 
 
-def log_prediction(model_version, features, prediction, probability, latency_ms):
+def log_prediction(model_version, features, prediction, probability, latency_ms, status="success"):
     """
     Non-blocking prediction logger.
     Spawns background thread to avoid blocking inference.
@@ -70,7 +72,7 @@ def log_prediction(model_version, features, prediction, probability, latency_ms)
     """
     thread = Thread(
         target=_async_log,
-        args=(model_version, features, prediction, probability, latency_ms),
+        args=(model_version, features, prediction, probability, latency_ms, status),
         daemon=True,
     )
     thread.start()

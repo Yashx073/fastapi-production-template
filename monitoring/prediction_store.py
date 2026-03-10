@@ -16,9 +16,10 @@ CREATE TABLE IF NOT EXISTS predictions (
     timestamp TEXT NOT NULL,
     model_version TEXT NOT NULL,
     features TEXT NOT NULL,
-    prediction INTEGER NOT NULL,
-    probability REAL NOT NULL,
+    prediction INTEGER,
+    probability REAL,
     latency_ms REAL NOT NULL,
+    status TEXT DEFAULT 'success',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -41,6 +42,57 @@ class PredictionStore:
             for statement in PREDICTIONS_SCHEMA.split(";"):
                 if statement.strip():
                     conn.execute(statement)
+
+            # Keep old DBs compatible: add `status` and relax NOT NULL constraints if needed.
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(predictions)")}
+            if "status" not in cols:
+                conn.execute("ALTER TABLE predictions ADD COLUMN status TEXT DEFAULT 'success'")
+
+            table_info = list(conn.execute("PRAGMA table_info(predictions)"))
+            notnull_by_col = {row[1]: row[3] for row in table_info}
+            needs_nullable_migration = (
+                notnull_by_col.get("prediction", 0) == 1
+                or notnull_by_col.get("probability", 0) == 1
+            )
+
+            if needs_nullable_migration:
+                conn.execute(
+                    """
+                    CREATE TABLE predictions_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        model_version TEXT NOT NULL,
+                        features TEXT NOT NULL,
+                        prediction INTEGER,
+                        probability REAL,
+                        latency_ms REAL NOT NULL,
+                        status TEXT DEFAULT 'success',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+                conn.execute(
+                    """
+                    INSERT INTO predictions_new
+                    (id, timestamp, model_version, features, prediction, probability, latency_ms, status, created_at)
+                    SELECT
+                        id,
+                        timestamp,
+                        model_version,
+                        features,
+                        prediction,
+                        probability,
+                        latency_ms,
+                        COALESCE(status, 'success') as status,
+                        created_at
+                    FROM predictions
+                    """
+                )
+                conn.execute("DROP TABLE predictions")
+                conn.execute("ALTER TABLE predictions_new RENAME TO predictions")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON predictions(timestamp)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_model_version ON predictions(model_version)")
+
             conn.commit()
             conn.close()
         except Exception as e:
@@ -51,9 +103,10 @@ class PredictionStore:
         self,
         model_version: str,
         features: Dict[str, Any],
-        prediction: int,
-        probability: float,
+        prediction: Optional[int],
+        probability: Optional[float],
         latency_ms: float,
+        status: str = "success",
         timestamp: Optional[str] = None,
     ) -> bool:
         """
@@ -78,16 +131,17 @@ class PredictionStore:
             conn.execute(
                 """
                 INSERT INTO predictions 
-                (timestamp, model_version, features, prediction, probability, latency_ms)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (timestamp, model_version, features, prediction, probability, latency_ms, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     timestamp,
                     model_version,
                     json.dumps(features, default=str),
-                    int(prediction),
-                    float(probability),
+                    int(prediction) if prediction is not None else None,
+                    float(probability) if probability is not None else None,
                     float(latency_ms),
+                    str(status),
                 ),
             )
             conn.commit()

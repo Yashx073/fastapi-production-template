@@ -11,6 +11,7 @@ from app.db.session import engine
 from app.services.prediction_logger import log_prediction
 from app.schemas import FraudRequest
 from monitoring.prediction_store import get_store
+from sqlalchemy import text
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
@@ -22,6 +23,11 @@ model = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global model
+
+    if os.getenv("SKIP_STARTUP_TASKS", "0") == "1":
+        model = None
+        yield
+        return
     
     # Load model from Production stage - fail fast if not available
     print(f"Loading model from Production stage: {MODEL_URI}")
@@ -40,6 +46,12 @@ async def lifespan(app: FastAPI):
     for attempt in range(db_max_retries):
         try:
             Base.metadata.create_all(bind=engine)
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'success'"
+                    )
+                )
             print("✓ Database tables created successfully")
             break
         except Exception as e:
@@ -67,16 +79,12 @@ def health():
 
 @app.post("/predict")
 def predict(transaction: FraudRequest, threshold: float = 0.8):
-    import time
     start_time = time.time()
     
     if model is None:
         return {"error": "Model not loaded"}
     
     df = pd.DataFrame([transaction.dict()])
-    prob = model.predict(df)[0][1]
-    fraud = prob >= threshold
-    latency = (time.time() - start_time) * 1000  # Convert to milliseconds
 
     # Extract model version from metadata
     try:
@@ -84,19 +92,50 @@ def predict(transaction: FraudRequest, threshold: float = 0.8):
     except Exception:
         model_version = "Production"
 
-    log_prediction(
-        model_version=str(model_version),
-        features=df.to_dict(orient="records")[0],
-        probability=float(prob),
-        prediction=fraud,
-        latency_ms=latency
-    )
-    
-    return {
-        "fraud_probability": float(prob),
-        "is_fraud": bool(fraud),
-        "threshold": threshold,
-    }
+    features = df.to_dict(orient="records")[0]
+
+    try:
+        prediction_output = model.predict(df)
+
+        if hasattr(model, "predict_proba"):
+            prob = float(model.predict_proba(df)[0][1])
+            prediction = int(prob >= threshold)
+        else:
+            first_pred = prediction_output[0]
+            if hasattr(first_pred, "__len__") and len(first_pred) > 1:
+                prob = float(first_pred[1])
+                prediction = int(prob >= threshold)
+            else:
+                prediction = int(bool(first_pred))
+                prob = float(first_pred) if isinstance(first_pred, (int, float)) else float(prediction)
+
+        latency_ms = (time.time() - start_time) * 1000
+
+        log_prediction(
+            model_version=str(model_version),
+            features=features,
+            prediction=int(prediction),
+            probability=float(prob),
+            latency_ms=latency_ms,
+            status="success",
+        )
+
+        return {
+            "fraud_probability": float(prob),
+            "is_fraud": bool(prediction),
+            "threshold": threshold,
+        }
+    except Exception as e:
+        latency_ms = (time.time() - start_time) * 1000
+        log_prediction(
+            model_version=str(model_version),
+            features=features,
+            prediction=None,
+            probability=None,
+            latency_ms=latency_ms,
+            status="error",
+        )
+        return {"error": str(e)}
 
 
 # ============================================================================

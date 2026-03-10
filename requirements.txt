@@ -13,4 +13,5 @@ pyyaml
 joblib
 prefect
 great_expectations
+pytest
 #new

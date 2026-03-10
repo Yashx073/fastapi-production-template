@@ -4,12 +4,16 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
 
-def load_data(parquet_path: str | Path):
-    parquet_path = Path(parquet_path)
-    if parquet_path.suffix != ".parquet":
-        raise ValueError("Training data must be a .parquet file")
-
-    df = pd.read_parquet(parquet_path)
+def load_data(data_path: str | Path):
+    """Load data from CSV or Parquet file."""
+    data_path = Path(data_path)
+    
+    if data_path.suffix.lower() == '.csv':
+        df = pd.read_csv(data_path)
+    elif data_path.suffix.lower() == '.parquet':
+        df = pd.read_parquet(data_path)
+    else:
+        raise ValueError(f"Unsupported file format: {data_path.suffix}. Use .csv or .parquet")
 
     df = df.drop("transaction_id", axis=1)
 
