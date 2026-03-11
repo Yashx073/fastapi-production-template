@@ -1,0 +1,1 @@
+sudo sh -c 'fuser -k 8000/tcp 8001/tcp 5000/tcp 5432/tcp 6379/tcp 2>/dev/null; pkill -f uvicorn 2>/dev/null; pkill -f "mlflow.server.fastapi_app" 2>/dev/null; ss -ltnp | grep -E ":8000|:8001|:5000|:5432|:6379" || echo "All target ports are free"'

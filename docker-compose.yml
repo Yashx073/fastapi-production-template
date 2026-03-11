@@ -64,6 +64,19 @@ services:
       retries: 5
       start_period: 30s
 
+  alert-worker:
+    build: .
+    command: python monitoring/alert_worker.py
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      - PYTHONPATH=/app
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - ALERT_POLL_INTERVAL=60
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+
 volumes:
   db_data:
   mlflow_db:

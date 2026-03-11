@@ -10,6 +10,8 @@ from app.db.models import Base
 from app.db.session import engine
 from app.services.prediction_logger import log_prediction
 from app.schemas import FraudRequest
+from monitoring.drift_detector import detect_drift
+from monitoring.latency_metrics import compute_latency_metrics
 from monitoring.prediction_store import get_store
 from sqlalchemy import text
 
@@ -142,6 +144,11 @@ def predict(transaction: FraudRequest, threshold: float = 0.8):
 # MONITORING ENDPOINTS (6.1 Foundation)
 # ============================================================================
 
+@app.get("/metrics")
+def get_metrics():
+    """Return latency metrics for monitoring integrations."""
+    return compute_latency_metrics()
+
 @app.get("/monitoring/latency")
 def get_latency_metrics():
     """Return P50, P95 latency and other SLA metrics."""
@@ -173,3 +180,9 @@ def get_prediction_distribution():
         "distribution": dist,
         "window": "1_hour",
     }
+
+
+@app.get("/monitoring/drift")
+def get_drift_results():
+    """Return latest feature drift test results."""
+    return detect_drift()

@@ -82,6 +82,42 @@ CREATE TABLE predictions (
 - 6.4: Alerts on drift/latency/errors
 - 6.5: Grafana dashboard
 
+## Step 6.3.4 - How Drift Is Determined
+
+- Source DB: `monitoring/predictions.db` (fallback: `artifacts/monitoring.db`)
+- Sample window: latest 500 rows from `predictions.features`
+- Statistical test: `scipy.stats.ks_2samp` (two-sample KS test)
+- Rule (no Evidently): drift is detected when `p_value < 0.05`
+
+Drift output per feature includes:
+- `method` (`ks_2samp`)
+- `threshold`
+- `ks_stat`
+- `p_value`
+- `sample_size`
+- `drift_detected`
+
+## Step 6.4 - Alerting System
+
+`monitoring/alert_worker.py` runs a background loop that checks:
+- p95 latency vs `LATENCY_THRESHOLD_MS`
+- error rate vs `ERROR_RATE_THRESHOLD`
+- drifted feature ratio vs `DRIFTED_FEATURE_RATE_THRESHOLD`
+
+Alerts are sent to Slack using incoming webhooks:
+
+```bash
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/XXX/YYY/ZZZ"
+prime-run python monitoring/alert_worker.py
+```
+
+Spam protection:
+- duplicate alerts are suppressed for `ALERT_COOLDOWN_MINUTES`
+- state is stored in `monitoring/.alert_state.json`
+
+Containerized run:
+- `docker-compose.yml` includes an `alert-worker` service using the same webhook env var
+
 ---
 
 **Interview talking point**: "I implemented non-blocking prediction logging to ensure inference latency is unaffected by monitoring overhead. This is production-grade design."
