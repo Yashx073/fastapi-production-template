@@ -14,7 +14,12 @@ spec:
     spec:
       containers:
       - name: fraud-api
-        image: fraud-api:1.0
+        image: fraud-api:2.0
         imagePullPolicy: Never
         ports:
         - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://fraud:fraud@postgres-service:5432/frauddb"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow-service:5000"
