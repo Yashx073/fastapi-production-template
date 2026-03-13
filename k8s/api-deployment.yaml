@@ -18,6 +18,13 @@ spec:
         imagePullPolicy: Never
         ports:
         - containerPort: 8000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
         env:
         - name: DATABASE_URL
           value: "postgresql://fraud:fraud@postgres-service:5432/frauddb"

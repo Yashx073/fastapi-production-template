@@ -39,6 +39,12 @@ pip install -r requirements.txt
 make run
 ```
 
+For host-based local runs with Docker dependencies auto-wired:
+
+```bash
+make run-local
+```
+
 ## Tests
 
 ```bash

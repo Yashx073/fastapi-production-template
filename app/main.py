@@ -21,10 +21,11 @@ MODEL_URI = "models:/fraud-detection-model/Production"
 
 
 model = None
+db_ready = False
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global model
+    global model, db_ready
 
     if os.getenv("SKIP_STARTUP_TASKS", "0") == "1":
         model = None
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
                     )
                 )
             print("✓ Database tables created successfully")
+            db_ready = True
             break
         except Exception as e:
             if attempt < db_max_retries - 1:
@@ -63,7 +65,8 @@ async def lifespan(app: FastAPI):
                 time.sleep(db_retry_delay)
             else:
                 print(f"✗ Database connection failed after {db_max_retries} attempts: {e}")
-                raise
+                print("⚠️  Starting API without Postgres audit logging")
+                db_ready = False
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -75,8 +78,9 @@ def root():
 @app.get("/health")
 def health():
     return {
-        "status": "healthy" if model is not None else "degraded",
+        "status": "healthy" if model is not None and db_ready else "degraded",
         "model_loaded": model is not None,
+        "db_ready": db_ready,
     }
 
 @app.post("/predict")
