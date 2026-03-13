@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: drift-alert
+  labels:
+    release: monitoring
+spec:
+  groups:
+  - name: drift-alerts
+    rules:
+    - alert: DataDriftDetected
+      expr: data_drift_score > 0.5
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        description: "Data drift detected in fraud model"

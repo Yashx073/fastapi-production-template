@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drift-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drift-monitor
+  template:
+    metadata:
+      labels:
+        app: drift-monitor
+    spec:
+      containers:
+      - name: drift-monitor
+        image: fraud-api:2.0
+        imagePullPolicy: Never
+        command: ["python", "monitoring/drift_monitor.py", "--loop", "--interval", "60", "--port", "9000"]
+        ports:
+        - containerPort: 9000
+          name: http

@@ -1,0 +1,70 @@
+==============================================================
+  RESUME BULLET POINTS — Fraud Detection MLOps Platform
+==============================================================
+
+--- HEADLINE (project title for resume) ---
+
+Fraud Detection MLOps Platform | FastAPI · scikit-learn · MLflow · Kubernetes · Prometheus
+
+--- SHORT DESCRIPTION (1–2 lines under project title) ---
+
+Production-grade real-time fraud detection system with end-to-end ML pipeline,
+Kubernetes deployment, autoscaling, and full observability stack.
+
+--- BULLET POINTS (pick 4–6 based on role you're applying for) ---
+
+ML ENGINEERING
+• Trained Logistic Regression and Random Forest classifiers on imbalanced credit
+  card fraud dataset (10k rows); tracked experiments, metrics, and model artifacts
+  with MLflow; promoted models through Staging → Production via MLflow Model Registry.
+
+• Built a reproducible, config-driven training pipeline (scikit-learn + Prefect
+  orchestration) with feature preprocessing, data schema validation (range/null/
+  type checks), and versioned artifact storage.
+
+BACKEND / API ENGINEERING
+• Developed a FastAPI inference service with /predict, /health, and /metrics
+  endpoints; integrated Prometheus instrumentation (prometheus-fastapi-instrumentator)
+  for HTTP latency histograms and request rate tracking.
+
+• Implemented async prediction logging to PostgreSQL via SQLAlchemy with
+  graceful degraded-mode startup (non-fatal DB/model failures in production).
+
+MLOPS / INFRASTRUCTURE
+• Deployed the full ML system to Kubernetes (Minikube) — API deployment (2 replicas),
+  PostgreSQL, MLflow, and drift monitor — each with Services, resource requests/limits,
+  and health checks.
+
+• Configured Horizontal Pod Autoscaler (HPA) with CPU-based scaling; validated
+  auto scale-up and scale-down under synthetic load using Apache Bench (ab).
+
+MONITORING & OBSERVABILITY
+• Deployed Prometheus + Grafana + Alertmanager via Helm (kube-prometheus-stack);
+  configured ServiceMonitors to scrape API and drift-monitor metrics endpoints.
+
+• Built a dedicated drift-monitor Kubernetes deployment using Evidently for
+  data drift detection; exported data_drift_score and data_drift_detected as
+  Prometheus gauges; defined a PrometheusRule alert (DataDriftDetected) that
+  fires when drift score exceeds 0.5 for 2+ minutes.
+
+• Implemented an alert worker (Python) with P95/P99 latency tracking, error rate
+  monitoring, and Slack webhook notifications with per-alert cooldown logic.
+
+--- SKILLS DEMONSTRATED (for skills section of resume) ---
+
+Languages:        Python
+Frameworks:       FastAPI, scikit-learn, pandas, SQLAlchemy, Prefect
+ML Tools:         MLflow (tracking + registry), Evidently (drift detection)
+Infrastructure:   Docker, Docker Compose, Kubernetes (Minikube), Helm
+Monitoring:       Prometheus, Grafana, Alertmanager, prometheus-client
+Databases:        PostgreSQL, SQLite
+Testing:          pytest
+Other:            HPA, ServiceMonitor, PrometheusRule, YAML manifests
+
+--- ONE-LINER FOR LINKEDIN / BIO ---
+
+"Built a production ML system for fraud detection — FastAPI inference API,
+MLflow model registry, Kubernetes deployment with HPA autoscaling, Prometheus/
+Grafana monitoring, and automated drift alerting."
+
+==============================================================

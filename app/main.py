@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from prometheus_fastapi_instrumentator import Instrumentator
 import os
 import pandas as pd
 import mlflow
@@ -70,6 +71,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+Instrumentator().instrument(app).expose(app)
 
 @app.get("/")
 def root():
@@ -148,7 +150,7 @@ def predict(transaction: FraudRequest, threshold: float = 0.8):
 # MONITORING ENDPOINTS (6.1 Foundation)
 # ============================================================================
 
-@app.get("/metrics")
+@app.get("/monitoring/metrics")
 def get_metrics():
     """Return latency metrics for monitoring integrations."""
     return compute_latency_metrics()

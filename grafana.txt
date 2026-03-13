@@ -1,0 +1,3 @@
+Password:  kubectl get secret monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+
+UserName:  kubectl get secret monitoring-grafana -o jsonpath="{.data.admin-user}" | base64 --decode

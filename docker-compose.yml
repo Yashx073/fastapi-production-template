@@ -28,8 +28,7 @@ services:
       --serve-artifacts
       --host 0.0.0.0
     environment:
-      - MLFLOW_ALLOWED_ORIGINS=["http://localhost:5000", "http://127.0.0.1:5000", "http://mlflow:5000", "http://localhost", "http://127.0.0.1", "http://api:8000", "*"]
-      - MLFLOW_CORS_ALLOW_ORIGIN_HEADER_VALUE=1
+      - MLFLOW_ALLOWED_ORIGINS=*
       - MLFLOW_SERVER_ALLOWED_HOSTS=*
     ports:
       - "5000:5000"
@@ -37,7 +36,7 @@ services:
       - mlflow_db:/mlflow
       - mlflow_artifacts:/mlflow/artifacts
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:5000')\" || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:5000/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -50,7 +49,7 @@ services:
       db:
         condition: service_healthy
       mlflow:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
@@ -58,11 +57,26 @@ services:
       - PYTHONPATH=/app
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:8000/health')\" || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  drift-monitor:
+    build: .
+    command: python monitoring/drift_monitor.py --loop --interval 60 --port 9000
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "9000:9000"
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql://fraud:fraud@db:5432/frauddb
+    volumes:
+      - ./monitoring:/app/monitoring
 
   alert-worker:
     build: .
@@ -70,7 +84,7 @@ services:
     restart: unless-stopped
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
     environment:
       - PYTHONPATH=/app
       - MLFLOW_TRACKING_URI=http://mlflow:5000

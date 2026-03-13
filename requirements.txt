@@ -15,4 +15,6 @@ prefect
 great_expectations
 pytest
 requests
-#new
+prometheus-fastapi-instrumentator
+prometheus-client
+evidently

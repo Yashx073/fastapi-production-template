@@ -1,40 +1,64 @@
-# Virtual environment
+# ── Virtual environments ──────────────────────────────────────
 venv/
+.venv/
+env/
 
-# Python cache
+# ── Python cache ──────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.pdb
+.Python
 
-# ML artifacts
-ml/data/
-ml/model.pkl
+# ── Distribution / packaging ──────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+
+# ── Testing ───────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ── ML artifacts ──────────────────────────────────────────────
 *.pkl
-precision_recall_curve.png
+*.joblib
+ml/data/
+mlruns/
+mlflow.db
+artifacts/
 
-# Jupyter
+# ── Monitoring outputs ────────────────────────────────────────
+monitoring/drift_reports/
+monitoring/recent_predictions.csv
+monitoring/.alert_state.json
+
+# ── Data ──────────────────────────────────────────────────────
+data/processed/
+data/raw/*.csv
+
+# ── Jupyter ───────────────────────────────────────────────────
 .ipynb_checkpoints/
+*.ipynb
 
-# OS files
+# ── Environment / secrets ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── OS files ──────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Environment files
-.env
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# MLflow
-mlruns/
-mlflow.db
-
-# Virtual env
-venv/
-
-# Python
-__pycache__/
-*.pyc
-
-*.pkl
-mlruns/
-mlflow.db
+# ── Docker ────────────────────────────────────────────────────
+*.log
 

@@ -2,7 +2,14 @@ from app.db.models import PredictionLog
 from app.db.session import SessionLocal
 from monitoring.prediction_store import get_store
 import json
+import csv
+from datetime import datetime
+from pathlib import Path
 from threading import Thread
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+RECENT_PREDICTIONS_CSV = PROJECT_ROOT / "monitoring" / "recent_predictions.csv"
 
 
 def _to_native(obj):
@@ -35,6 +42,29 @@ def _async_log(model_version, features, prediction, probability, latency_ms, sta
         )
     except Exception as e:
         print(f"⚠️  SQLite logging failed (non-fatal): {e}")
+
+    # Log to CSV for drift monitoring input dataset
+    try:
+        native_features = _to_native(features)
+        row = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            **(native_features if isinstance(native_features, dict) else {}),
+            "prediction": int(bool(prediction)) if prediction is not None else None,
+            "probability": float(probability) if probability is not None else None,
+            "status": str(status),
+        }
+
+        RECENT_PREDICTIONS_CSV.parent.mkdir(parents=True, exist_ok=True)
+        file_exists = RECENT_PREDICTIONS_CSV.exists()
+        fieldnames = list(row.keys())
+
+        with open(RECENT_PREDICTIONS_CSV, "a", newline="", encoding="utf-8") as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(row)
+    except Exception as e:
+        print(f"⚠️  CSV logging failed (non-fatal): {e}")
     
     # Log to Postgres audit table (secondary, if DB available)
     try:

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: drift-monitor
+  labels:
+    app: drift-monitor
+spec:
+  selector:
+    app: drift-monitor
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000

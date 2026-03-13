@@ -1,7 +1,55 @@
-venv
-__pycache__
-*.pyc
+# Version control
 .git
+.gitignore
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+
+# ML run artifacts (large, not needed in image)
 mlruns/
-models/
+mlflow.db
+artifacts/
 *.pkl
+*.joblib
+
+# Monitoring outputs
+monitoring/drift_reports/
+monitoring/recent_predictions.csv
+monitoring/.alert_state.json
+
+# Docs / tooling
+README.md
+README*.md
+RESUME.txt
+Makefile
+docker-compose.yml
+Dockerfile
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# k8s manifests (not part of app runtime)
+k8s/
